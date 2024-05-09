@@ -10,31 +10,36 @@ import {
   Patch,
 } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { ORDERS_SERVICE } from 'src/config';
+import { NATS_SERVICE } from 'src/config';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
-import { catchError } from 'rxjs';
+import { catchError, firstValueFrom } from 'rxjs';
 import { OrderPaginationDto } from './dto';
 import { StatusDto } from './dto/status.dto';
 
 @Controller('orders')
 export class OrdersController {
-  constructor(
-    @Inject(ORDERS_SERVICE) private readonly ordersClient: ClientProxy,
-  ) {}
+  constructor(@Inject(NATS_SERVICE) private readonly client: ClientProxy) {}
 
   @Post()
   createOrder(@Body() createOrderDto: CreateOrderDto) {
-    return this.ordersClient.send('createOrder', createOrderDto);
+    return this.client.send('createOrder', createOrderDto);
   }
 
   @Get()
-  findAllOrders(@Query() paginationDto: OrderPaginationDto) {
-    return this.ordersClient.send('findAllOrders', paginationDto);
+  async findAllOrders(@Query() paginationDto: OrderPaginationDto) {
+    try {
+      const orders = await firstValueFrom(
+        this.client.send('findAllOrders', paginationDto),
+      );
+      return orders;
+    } catch (err) {
+      throw new RpcException(err);
+    }
   }
 
   @Get(':id')
   findOneOrder(@Param('id', ParseUUIDPipe) id: string) {
-    return this.ordersClient.send('findOneOrder', { id }).pipe(
+    return this.client.send('findOneOrder', { id }).pipe(
       //? Aqui otra forma de manejar el error utilizando catchError de rxjs.
       catchError((err) => {
         throw new RpcException(err);
@@ -47,7 +52,7 @@ export class OrdersController {
     @Body() statusDto: StatusDto,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return this.ordersClient
+    return this.client
       .send('changeOrderStatus', { id, status: statusDto.status })
       .pipe(
         catchError((err) => {
