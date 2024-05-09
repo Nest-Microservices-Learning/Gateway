@@ -42,18 +42,11 @@ export class ProductsController {
   @Get(':id')
   async findOneProduct(@Param('id') id: string) {
     return this.productsClient.send({ cmd: 'find_one_product' }, { id }).pipe(
+      //? Aqui otra forma de manejar el error utilizando catchError de rxjs.
       catchError((err) => {
         throw new RpcException(err);
       }),
     );
-
-    // try {
-    //   return await firstValueFrom(
-    //     this.productsClient.send({ cmd: 'find_one_product' }, { id }),
-    //   );
-    // } catch (e) {
-    //   throw new RpcException(e);
-    // }
   }
 
   @Patch(':id')
