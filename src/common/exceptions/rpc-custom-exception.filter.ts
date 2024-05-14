@@ -7,6 +7,11 @@ export class RpcCustomExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const res = ctx.getResponse();
 
+    // Verifica si los encabezados ya han sido enviados
+    if (res.headersSent) {
+      return;
+    }
+
     const rpcError = exception.getError();
 
     if (rpcError.toString().includes('Empty response')) {
@@ -24,9 +29,9 @@ export class RpcCustomExceptionFilter implements ExceptionFilter {
       'message' in rpcError
     ) {
       const status = isNaN(+rpcError.status) ? 400 : +rpcError.status;
-      res.status(status).json(rpcError);
+      return res.status(status).json(rpcError);
     }
-    res.status(400).json({
+    return res.status(400).json({
       status: 400,
       message: rpcError,
     });
